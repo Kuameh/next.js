@@ -1,18 +1,24 @@
-import { nextTestSetup } from 'e2e-utils'
+import { nextTestSetup, isNextDeploy } from 'e2e-utils'
 import { pathExists, readdir } from 'fs-extra'
 import { join } from 'path'
 
 describe('CPU Profiling - next start', () => {
-  const { next, isNextDev } = nextTestSetup({
+  const { next, isNextDev, skipped } = nextTestSetup({
     files: __dirname,
     startCommand: 'pnpm next start --experimental-cpu-prof',
     dependencies: {},
+    skipStart: true, // Skip auto-start to avoid failure in dev/deploy mode
   })
 
-  if (isNextDev) {
-    it('skip for development mode', () => {})
+  // CPU profiling only works with local `next start`, not dev or deploy modes
+  if (isNextDev || isNextDeploy || skipped) {
+    it('skip for development/deploy mode', () => {})
     return
   }
+
+  beforeAll(async () => {
+    await next.start()
+  })
 
   it('should create CPU profile files on exit', async () => {
     const profileDir = join(next.testDir, '.next', 'cpu-profiles')

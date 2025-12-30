@@ -126,6 +126,16 @@ export async function initialize(opts: {
 
   let originalFetch = globalThis.fetch
 
+  // Set up testProxy BEFORE initializing dev server so that the intercepted fetch
+  // is captured as originalFetch and used for HMR resets
+  if (config.experimental.testProxy) {
+    const { interceptTestApis } =
+      // eslint-disable-next-line @next/internal/typechecked-require -- experimental/testmode is not built ins next/dist/esm
+      require('next/dist/experimental/testmode/server') as typeof import('../../experimental/testmode/server')
+    interceptTestApis()
+    originalFetch = globalThis.fetch
+  }
+
   if (opts.dev) {
     // Lazy load dev server initialization to reduce startup time
     // and enable better bundling of production code paths
@@ -649,14 +659,11 @@ export async function initialize(opts: {
 
   let requestHandler: WorkerRequestHandler = requestHandlerImpl
   if (config.experimental.testProxy) {
-    // Intercept fetch and other testmode apis.
-    const { wrapRequestHandlerWorker, interceptTestApis } =
+    // Wrap the request handler for testmode (interceptTestApis was already called earlier)
+    const { wrapRequestHandlerWorker } =
       // eslint-disable-next-line @next/internal/typechecked-require -- experimental/testmode is not built ins next/dist/esm
       require('next/dist/experimental/testmode/server') as typeof import('../../experimental/testmode/server')
     requestHandler = wrapRequestHandlerWorker(requestHandler)
-    interceptTestApis()
-    // We treat the intercepted fetch as "original" fetch that should be reset to during HMR.
-    originalFetch = globalThis.fetch
   }
   requestHandlers[opts.dir] = requestHandler
 
